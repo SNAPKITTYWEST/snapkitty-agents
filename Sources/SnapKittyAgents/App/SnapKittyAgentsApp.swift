@@ -21,12 +21,28 @@ struct SnapKittyAgentsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            JITAgentBox()
-                .environmentObject(manager)
-                .preferredColorScheme(.dark)
-                .onAppear {
-                    Task { await manager.connect() }
-                }
+            TabView {
+                JITAgentBox()
+                    .environmentObject(manager)
+                    .tabItem {
+                        Label("Agents", systemImage: "person.circle")
+                    }
+
+                MiMoAgentView()
+                    .tabItem {
+                        Label("MiMo-4B", systemImage: "brain.head.profile")
+                    }
+
+                EventTimeline()
+                    .environmentObject(manager)
+                    .tabItem {
+                        Label("Events", systemImage: "timeline.selection")
+                    }
+            }
+            .preferredColorScheme(.dark)
+            .onAppear {
+                Task { await manager.connect() }
+            }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
