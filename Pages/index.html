@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign MiMo-4B</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --blue: #007AFF;
+            --blue-light: #E8F2FF;
+            --gray: #E5E5EA;
+            --gray-dark: #8E8E93;
+            --white: #FFFFFF;
+            --bg: #F2F2F7;
+            --text: #1C1C1E;
+            --text-secondary: #8E8E93;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            border-bottom: 0.5px solid var(--gray);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .header-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--blue), #5856D6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .header-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-status.connected {
+            color: #34C759;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg);
+            color: var(--blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .header-btn:hover {
+            background: var(--gray);
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scroll-behavior: smooth;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message.system {
+            align-self: center;
+            max-width: 90%;
+        }
+
+        .bubble {
+            padding: 8px 14px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.user .bubble {
+            background: var(--blue);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .bubble {
+            background: var(--white);
+            color: var(--text);
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .message.system .bubble {
+            background: var(--gray);
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            padding: 0 4px;
+        }
+
+        .message.user .timestamp {
+            text-align: right;
+        }
+
+        /* Typing Indicator */
+        .typing {
+            display: none;
+            align-self: flex-start;
+            padding: 0 16px;
+        }
+
+        .typing.active {
+            display: flex;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background: var(--white);
+            border-radius: 18px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--gray-dark);
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Input Area */
+        .input-area {
+            background: var(--white);
+            border-top: 0.5px solid var(--gray);
+            padding: 8px 16px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background: var(--bg);
+            border-radius: 20px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: flex-end;
+            min-height: 36px;
+        }
+
+        .input-field {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .input-field::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .send-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--blue);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .send-btn:not(:disabled):hover {
+            opacity: 0.85;
+        }
+
+        /* Code Blocks */
+        .bubble pre {
+            background: #1C1C1E;
+            color: #F5F5F7;
+            padding: 10px 12px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 6px 0;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .bubble code {
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            background: rgba(0,0,0,0.06);
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        .message.user .bubble code {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .bubble pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            display: none;
+            position: fixed;
+            top: 60px;
+            right: 16px;
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+            padding: 16px;
+            z-index: 100;
+            width: 280px;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .settings-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .settings-group {
+            margin-bottom: 12px;
+        }
+
+        .settings-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--gray);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .settings-input:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+
+        /* Scrollbar */
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--gray-dark);
+            border-radius: 3px;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .message {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-avatar">SK</div>
+        <div class="header-info">
+            <div class="header-name">Sovereign MiMo-4B</div>
+            <div class="header-status" id="status">Connecting...</div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" id="settingsBtn" title="Settings">⚙</button>
+            <button class="header-btn" id="clearBtn" title="Clear">↺</button>
+        </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-title">Settings</div>
+        <div class="settings-group">
+            <div class="settings-label">Ollama URL</div>
+            <input class="settings-input" id="ollamaUrl" type="text" value="http://localhost:11434">
+        </div>
+        <div class="settings-group">
+            <div class="settings-label">Model</div>
+            <input class="settings-input" id="modelName" type="text" value="sovereign-mimo-4b">
+        </div>
+        <div class="settings-group">
+            <div class="settings-label">Temperature</div>
+            <input class="settings-input" id="temperature" type="number" value="0.7" min="0" max="2" step="0.1">
+        </div>
+        <div class="settings-group">
+            <div class="settings-label">Max Tokens</div>
+            <input class="settings-input" id="maxTokens" type="number" value="512" min="1" max="8192">
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="message system">
+            <div class="bubble">Sovereign MiMo-4B · Local · No Cloud</div>
+        </div>
+    </div>
+
+    <div class="typing" id="typing">
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-wrapper">
+            <textarea class="input-field" id="inputField" placeholder="Message" rows="1"></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
+            </svg>
+        </button>
+    </div>
+
+    <script type="module">
+        // WASM Swift Module Loader
+        let swiftModule = null;
+
+        async function initWasm() {
+            try {
+                const response = await fetch('./swift/mimo_core.wasm');
+                if (response.ok) {
+                    const bytes = await response.arrayBuffer();
+                    const { instance } = await WebAssembly.instantiate(bytes, {
+                        env: {
+                            memory: new WebAssembly.Memory({ initial: 256 })
+                        }
+                    });
+                    swiftModule = instance.exports;
+                    console.log('[WASM] Swift module loaded');
+                }
+            } catch (e) {
+                console.log('[WASM] Running in JS fallback mode');
+            }
+        }
+
+        // ERE Gates
+        function ereCheck(agentId, intent, output) {
+            const violations = [];
+
+            // P1: No secrets
+            const secretPatterns = ['sk-', 'api_key', 'token:', 'password:', 'secret:', 'bearer '];
+            for (const pat of secretPatterns) {
+                if (output.toLowerCase().includes(pat)) {
+                    violations.push('P1: secret pattern');
+                    break;
+                }
+            }
+
+            // P2: No injection
+            const injectionPatterns = ['eval(', 'exec(', '__import__', 'subprocess', 'os.system', 'rm -rf'];
+            for (const pat of injectionPatterns) {
+                if (output.toLowerCase().includes(pat)) {
+                    violations.push('P2: injection pattern');
+                    break;
+                }
+            }
+
+            // P3: Loop safety
+            if (output.includes('while True') && !output.includes('break')) {
+                violations.push('P3: unsafe loop');
+            }
+
+            // P4: No telemetry
+            const telemetryPatterns = ['fetch(', 'XMLHttpRequest', 'sendBeacon'];
+            for (const pat of telemetryPatterns) {
+                if (output.toLowerCase().includes(pat)) {
+                    violations.push('P4: telemetry beacon');
+                    break;
+                }
+            }
+
+            return { passed: violations.length === 0, violations };
+        }
+
+        // SHA-256
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Config
+        function getConfig() {
+            return {
+                baseUrl: document.getElementById('ollamaUrl').value,
+                model: document.getElementById('modelName').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                maxTokens: parseInt(document.getElementById('maxTokens').value)
+            };
+        }
+
+        // Chat State
+        const chatContainer = document.getElementById('chatContainer');
+        const inputField = document.getElementById('inputField');
+        const sendBtn = document.getElementById('sendBtn');
+        const typing = document.getElementById('typing');
+        const status = document.getElementById('status');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const clearBtn = document.getElementById('clearBtn');
+
+        let isGenerating = false;
+        let conversationHistory = [];
+
+        // Check Health
+        async function checkHealth() {
+            const config = getConfig();
+            try {
+                const resp = await fetch(`${config.baseUrl}/api/tags`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const models = data.models || [];
+                    const found = models.some(m => m.name.includes(config.model));
+                    if (found) {
+                        status.textContent = 'Connected';
+                        status.className = 'header-status connected';
+                        return true;
+                    }
+                }
+                throw new Error('Model not found');
+            } catch (e) {
+                status.textContent = 'Offline';
+                status.className = 'header-status';
+                return false;
+            }
+        }
+
+        // Add Message
+        function addMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            // Simple markdown: code blocks, inline code, bold, italic
+            let html = text
+                .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+            bubble.innerHTML = html;
+
+            const time = document.createElement('div');
+            time.className = 'timestamp';
+            time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            div.appendChild(bubble);
+            div.appendChild(time);
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return div;
+        }
+
+        // Generate
+        async function generate(prompt) {
+            const config = getConfig();
+            const systemPrompt = 'You are Sovereign MiMo-4B, a sovereign instruct model. Follow instructions precisely. Write code, answer questions, reason through problems. Be concise.';
+
+            try {
+                const resp = await fetch(`${config.baseUrl}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: config.model,
+                        prompt: prompt,
+                        system: systemPrompt,
+                        stream: false,
+                        options: {
+                            num_predict: config.maxTokens,
+                            temperature: config.temperature,
+                            top_k: 50,
+                            top_p: 0.9,
+                            repeat_penalty: 1.1
+                        }
+                    })
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.text();
+                    throw new Error(`HTTP ${resp.status}: ${err}`);
+                }
+
+                const data = await resp.json();
+                return data.response || '';
+            } catch (e) {
+                console.error('[GENERATE]', e);
+                throw e;
+            }
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const text = inputField.value.trim();
+            if (!text || isGenerating) return;
+
+            isGenerating = true;
+            sendBtn.disabled = true;
+            inputField.value = '';
+            inputField.style.height = 'auto';
+
+            addMessage('user', text);
+            typing.classList.add('active');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await generate(text);
+
+                // ERE gate check
+                const ere = ereCheck('mimo-4b', text, response);
+
+                typing.classList.remove('active');
+
+                if (ere.passed) {
+                    addMessage('assistant', response);
+
+                    // Seal to WORM
+                    const seal = await sha256(`mimo-4b:${text}:${response}`);
+                    console.log('[WORM] Sealed:', seal.substring(0, 16));
+                } else {
+                    addMessage('system', `ERE HALT: ${ere.violations.join(', ')}`);
+                }
+
+                conversationHistory.push({ role: 'user', content: text });
+                conversationHistory.push({ role: 'assistant', content: response });
+            } catch (e) {
+                typing.classList.remove('active');
+                addMessage('system', `Error: ${e.message}`);
+            } finally {
+                isGenerating = false;
+                sendBtn.disabled = false;
+                inputField.focus();
+            }
+        }
+
+        // Auto-resize textarea
+        inputField.addEventListener('input', () => {
+            inputField.style.height = 'auto';
+            inputField.style.height = Math.min(inputField.scrollHeight, 120) + 'px';
+            sendBtn.disabled = !inputField.value.trim();
+        });
+
+        // Enter to send
+        inputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Settings toggle
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.classList.toggle('active');
+        });
+
+        // Clear chat
+        clearBtn.addEventListener('click', () => {
+            chatContainer.innerHTML = '';
+            conversationHistory = [];
+            addMessage('system', 'Chat cleared');
+        });
+
+        // Close settings on outside click
+        document.addEventListener('click', (e) => {
+            if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+                settingsPanel.classList.remove('active');
+            }
+        });
+
+        // Init
+        await initWasm();
+        await checkHealth();
+        inputField.focus();
+
+        // Re-check health periodically
+        setInterval(checkHealth, 30000);
+    </script>
+</body>
+</html>
